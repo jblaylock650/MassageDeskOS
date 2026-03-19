@@ -107,6 +107,27 @@ export default function MassageDeskPricingPage() {
           </div>
         </section>
 
+        <section className="mt-8 rounded-[2rem] border border-stone-200 bg-white p-7">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-2xl bg-stone-50 px-4 py-4 text-sm leading-7 text-stone-700">
+              <span className="font-semibold text-stone-900">One-time purchase:</span> pick your plan once and use your
+              purchased version long-term.
+            </div>
+            <div className="rounded-2xl bg-stone-50 px-4 py-4 text-sm leading-7 text-stone-700">
+              <span className="font-semibold text-stone-900">No subscription fatigue:</span> no forced monthly app fee to
+              keep your workflow active.
+            </div>
+            <div className="rounded-2xl bg-stone-50 px-4 py-4 text-sm leading-7 text-stone-700">
+              <span className="font-semibold text-stone-900">Private by intent:</span> your records are yours, not sold as
+              ad-targeting inventory.
+            </div>
+            <div className="rounded-2xl bg-stone-50 px-4 py-4 text-sm leading-7 text-stone-700">
+              <span className="font-semibold text-stone-900">No ad clutter:</span> no pushy in-app ad feed competing for your
+              attention.
+            </div>
+          </div>
+        </section>
+
         <section className="mt-12 grid gap-6 lg:grid-cols-3">
           {plans.map((plan) => {
             const isFeatured = plan.id === 'professional';

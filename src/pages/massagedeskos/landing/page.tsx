@@ -36,6 +36,25 @@ const reasons = [
   'Lets you own your data and backup process',
 ];
 
+const ownershipPillars = [
+  {
+    title: 'One-Time Purchase, Lifetime Use',
+    body: 'Buy once and keep using your purchased version without recurring subscription pressure.',
+  },
+  {
+    title: 'No Subscription Fatigue',
+    body: 'No forced monthly app fee just to keep your daily workflow running.',
+  },
+  {
+    title: 'Data Stays In Your Control',
+    body: 'Your records are managed through your workspace and backups, not sold as ad-network inventory.',
+  },
+  {
+    title: 'No Ad Clutter, No Feed Noise',
+    body: 'No pushy ad placements, no distraction-heavy feed design, and no wasted visual space.',
+  },
+];
+
 export default function MassageDeskLandingPage() {
   const [ownerPreview, setOwnerPreview] = useState(false);
 
@@ -149,6 +168,26 @@ export default function MassageDeskLandingPage() {
                 <p className="mt-4 text-sm leading-7 text-stone-700">{block.body}</p>
               </article>
             ))}
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-6 pb-16 lg:pb-24">
+          <div className="rounded-[2.5rem] border border-stone-200 bg-white px-8 py-10">
+            <div className="text-xs font-bold uppercase tracking-[0.22em] text-[#875d5d]">Why Buyers Choose It</div>
+            <h2 className="mt-3 font-serif text-4xl text-stone-900">Ownership over subscriptions, clarity over clutter.</h2>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-stone-700">
+              MassageDeskOS is built for practitioners who want to run a serious practice without getting trapped in
+              endless monthly tool fatigue, intrusive ad-driven layouts, or confusing software bloat.
+            </p>
+
+            <div className="mt-8 grid gap-4 md:grid-cols-2">
+              {ownershipPillars.map((pillar) => (
+                <article key={pillar.title} className="rounded-[1.5rem] border border-stone-200 bg-[#fcfbf8] p-5">
+                  <h3 className="text-lg font-bold text-stone-900">{pillar.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-stone-700">{pillar.body}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
 
