@@ -3,6 +3,7 @@ out/
 output/
 tmp/
 .vendor/
+supabase/.temp/
 
 .env
 .env.*
