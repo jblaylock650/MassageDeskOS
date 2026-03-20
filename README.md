@@ -23,9 +23,9 @@ Core commercial position:
 
 Current tier names and list prices shown in app copy:
 
-- `Starter License` (`$149`)
-- `Professional Setup` (`$349`)
-- `Studio Custom` (`$749`)
+- `Starter License` (`$149.95`)
+- `Professional Setup` (`$349.95`)
+- `Studio Custom` (`$749.95`)
 
 Current Stripe Payment Links configured:
 
@@ -51,6 +51,7 @@ Key owner docs:
 - [MASSAGEDESKOS_OWNER_PIPELINE.md](C:/Users/jblay/Downloads/TheraLinkNetwork/MASSAGEDESKOS_OWNER_PIPELINE.md)
 - [PHASE2_STRIPE_SUPABASE_SETUP.md](C:/Users/jblay/Downloads/TheraLinkNetwork/PHASE2_STRIPE_SUPABASE_SETUP.md)
 - [SURGE_LAUNCH_GUIDE.md](C:/Users/jblay/Downloads/TheraLinkNetwork/SURGE_LAUNCH_GUIDE.md)
+- [STARTER_ENTITLEMENT_E2E_TEST_SCRIPT.md](C:/Users/jblay/Downloads/TheraLinkNetwork/STARTER_ENTITLEMENT_E2E_TEST_SCRIPT.md)
 
 ## 4) Sales Funnel Routes
 
@@ -171,6 +172,7 @@ Frontend (`.env`) keys used by app:
 - `VITE_STRIPE_STARTER_PAYMENT_LINK`
 - `VITE_STRIPE_PROFESSIONAL_PAYMENT_LINK`
 - `VITE_STRIPE_STUDIO_PAYMENT_LINK`
+- `VITE_MASSAGEDESKOS_STARTER_DOWNLOAD_URL` (optional, Starter-only download button)
 - `VITE_MASSAGEDESKOS_SUPPORT_EMAIL` (optional)
 
 Edge function secrets (Supabase):
