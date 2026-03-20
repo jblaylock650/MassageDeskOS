@@ -1,9 +1,12 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../contexts/AuthContext';
+import { fetchBuyerEntitlementByEmail, type BuyerEntitlement } from '../../../lib/massagedeskosEntitlements';
+import { isOwnerEmail } from '../../../lib/massagedeskosAdmin';
 import {
-  clearBuyerSession,
   disableOwnerPreview,
   enableOwnerPreview,
-  getBuyerSession,
+  getOwnerPreviewPlan,
   getPlanById,
   isOwnerPreviewEnabled,
   productInfo,
@@ -18,13 +21,58 @@ const onboardingSteps = [
 
 export default function MassageDeskBuyerPortalPage() {
   const navigate = useNavigate();
-  const session = getBuyerSession();
-  const currentPlan = getPlanById(session?.purchasedPlan ?? null);
-  const ownerPreview = isOwnerPreviewEnabled();
+  const { user, signOut } = useAuth();
+  const [entitlement, setEntitlement] = useState<BuyerEntitlement | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleSignOut = () => {
-    clearBuyerSession();
+  const ownerPreview = Boolean(user?.email && isOwnerEmail(user.email) && isOwnerPreviewEnabled());
+  const previewPlan = ownerPreview ? getOwnerPreviewPlan() : null;
+  const activePlanId = ownerPreview ? previewPlan : entitlement?.plan_id ?? null;
+  const currentPlan = getPlanById(activePlanId);
+  const showStarterDownload = activePlanId === 'starter' && Boolean(productInfo.starterDownloadUrl);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadEntitlement = async () => {
+      if (!user?.email) {
+        setEntitlement(null);
+        setLoading(false);
+        return;
+      }
+
+      if (ownerPreview) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const row = await fetchBuyerEntitlementByEmail(user.email);
+        if (!cancelled) {
+          setEntitlement(row);
+        }
+      } catch {
+        if (!cancelled) {
+          setEntitlement(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadEntitlement();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ownerPreview, user?.email]);
+
+  const handleSignOut = async () => {
     disableOwnerPreview();
+    await signOut();
     navigate('/products/massagedeskos/login');
   };
 
@@ -32,6 +80,20 @@ export default function MassageDeskBuyerPortalPage() {
     enableOwnerPreview(planId);
     window.location.reload();
   };
+
+  const displayName = useMemo(() => {
+    const metadataName = typeof user?.user_metadata?.name === 'string' ? user.user_metadata.name : '';
+    if (metadataName.trim()) return metadataName.trim();
+    return 'Licensed Buyer';
+  }, [user?.user_metadata?.name]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-[linear-gradient(180deg,#f4f0e9_0%,#ffffff_55%,#f8f5ee_100%)] text-stone-700">
+        Verifying your license access...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f4f0e9_0%,#ffffff_55%,#f8f5ee_100%)] text-stone-900">
@@ -49,10 +111,10 @@ export default function MassageDeskBuyerPortalPage() {
             )}
             <button
               type="button"
-              onClick={handleSignOut}
+              onClick={() => void handleSignOut()}
               className="rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 transition hover:border-stone-500"
             >
-              Exit Portal
+              Sign Out
             </button>
           </div>
         </div>
@@ -61,18 +123,18 @@ export default function MassageDeskBuyerPortalPage() {
       <main className="mx-auto max-w-7xl px-6 py-10">
         {ownerPreview && (
           <section className="mb-8 rounded-[1.75rem] border border-emerald-200 bg-emerald-50 px-6 py-5 text-sm leading-7 text-emerald-900">
-            <span className="font-semibold">Owner preview is active.</span> Use the plan switcher below to test how the portal
-            feels across each offer tier without any paywall or real payment link.
+            <span className="font-semibold">Owner preview is active.</span> You can simulate each plan below without changing paid
+            buyer entitlements.
           </section>
         )}
 
         <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="rounded-[2.5rem] bg-stone-950 p-8 text-white">
-            <div className="text-xs font-bold uppercase tracking-[0.24em] text-[#f5d58c]">Post-purchase experience</div>
-            <h1 className="mt-4 font-serif text-5xl leading-tight">Your buyer now has a clean place to install, learn, and start.</h1>
+            <div className="text-xs font-bold uppercase tracking-[0.24em] text-[#f5d58c]">Licensed Access</div>
+            <h1 className="mt-4 font-serif text-5xl leading-tight">Your paid access is active and ready to use.</h1>
             <p className="mt-5 max-w-3xl text-sm leading-7 text-white/75">
-              This is where the real business value lives after checkout. Instead of dropping buyers onto a raw download page,
-              you give them a focused portal with install access, onboarding steps, support information, and future update visibility.
+              This portal is unlocked by verified entitlement tied to your checkout email. Use it to install the app, start
+              onboarding, and access your licensed resources.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <a
@@ -87,6 +149,14 @@ export default function MassageDeskBuyerPortalPage() {
               >
                 Install App
               </a>
+              {showStarterDownload && (
+                <a
+                  href={productInfo.starterDownloadUrl}
+                  className="rounded-full border border-[#f5d58c]/70 px-6 py-3 text-sm font-semibold text-[#f5d58c] transition hover:border-[#f5d58c]"
+                >
+                  Download Starter File
+                </a>
+              )}
             </div>
           </div>
 
@@ -95,20 +165,20 @@ export default function MassageDeskBuyerPortalPage() {
             <div className="mt-5 space-y-5 text-sm text-stone-700">
               <div>
                 <div className="text-xs uppercase tracking-[0.18em] text-stone-400">Name</div>
-                <div className="mt-1 text-lg font-semibold text-stone-900">{session?.name || 'Buyer name'}</div>
+                <div className="mt-1 text-lg font-semibold text-stone-900">{displayName}</div>
               </div>
               <div>
                 <div className="text-xs uppercase tracking-[0.18em] text-stone-400">Email</div>
-                <div className="mt-1 text-lg font-semibold text-stone-900">{session?.email || 'buyer@example.com'}</div>
+                <div className="mt-1 text-lg font-semibold text-stone-900">{user?.email || 'Not detected'}</div>
               </div>
               <div>
                 <div className="text-xs uppercase tracking-[0.18em] text-stone-400">Plan</div>
-                <div className="mt-1 text-lg font-semibold text-stone-900">{currentPlan?.name || 'No plan'}</div>
+                <div className="mt-1 text-lg font-semibold text-stone-900">{currentPlan?.name || 'Not available'}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-[0.18em] text-stone-400">Purchased</div>
+                <div className="text-xs uppercase tracking-[0.18em] text-stone-400">Access granted</div>
                 <div className="mt-1 text-lg font-semibold text-stone-900">
-                  {session?.purchasedAt ? new Date(session.purchasedAt).toLocaleString() : 'Not set'}
+                  {entitlement?.access_granted_at ? new Date(entitlement.access_granted_at).toLocaleString() : ownerPreview ? 'Owner preview session' : 'Not available'}
                 </div>
               </div>
             </div>
@@ -123,7 +193,7 @@ export default function MassageDeskBuyerPortalPage() {
                       type="button"
                       onClick={() => handleOwnerPlanSwitch(planId)}
                       className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                        session?.purchasedPlan === planId
+                        activePlanId === planId
                           ? 'bg-stone-900 text-white'
                           : 'border border-stone-300 text-stone-700 hover:border-stone-500'
                       }`}
@@ -163,11 +233,11 @@ export default function MassageDeskBuyerPortalPage() {
                 </a>
                 <Link to="/products/massagedeskos" className="rounded-2xl bg-white px-5 py-5 shadow-sm transition hover:-translate-y-0.5">
                   <div className="text-sm font-semibold text-stone-900">Product Overview</div>
-                  <div className="mt-2 text-sm text-stone-600">Review the positioning and product value story.</div>
+                  <div className="mt-2 text-sm text-stone-600">Review features and positioning.</div>
                 </Link>
                 <Link to="/products/massagedeskos/pricing" className="rounded-2xl bg-white px-5 py-5 shadow-sm transition hover:-translate-y-0.5">
                   <div className="text-sm font-semibold text-stone-900">Plan Reference</div>
-                  <div className="mt-2 text-sm text-stone-600">See what license tier the buyer selected.</div>
+                  <div className="mt-2 text-sm text-stone-600">Review your selected plan details.</div>
                 </Link>
                 <a href={`mailto:${productInfo.supportEmail}`} className="rounded-2xl bg-white px-5 py-5 shadow-sm transition hover:-translate-y-0.5">
                   <div className="text-sm font-semibold text-stone-900">Support Contact</div>
@@ -177,12 +247,11 @@ export default function MassageDeskBuyerPortalPage() {
             </div>
 
             <div className="rounded-[2rem] border border-stone-200 bg-white p-8">
-              <div className="text-xs font-bold uppercase tracking-[0.22em] text-stone-500">Production note</div>
-              <h2 className="mt-3 text-2xl font-bold text-stone-900">What this becomes later</h2>
+              <div className="text-xs font-bold uppercase tracking-[0.22em] text-stone-500">Access model</div>
+              <h2 className="mt-3 text-2xl font-bold text-stone-900">Paid entitlement verified</h2>
               <p className="mt-4 text-sm leading-7 text-stone-700">
-                In the real paid version, this page should be powered by a server-side entitlement check. The buyer signs in,
-                the portal verifies their purchase, and then the install link, downloads, and update notes are shown based on
-                their active license. For now, the owner preview and local stub let us test the full post-purchase experience.
+                This buyer portal is now unlocked through server-side entitlement records tied to your checkout email.
+                If your payment is still processing, access may appear a moment later after webhook sync completes.
               </p>
             </div>
           </div>

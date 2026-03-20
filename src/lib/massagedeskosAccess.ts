@@ -11,17 +11,9 @@ export interface MassageDeskPlan {
   paymentLink?: string;
 }
 
-export interface BuyerSession {
-  email: string;
-  name: string;
-  company?: string;
-  purchasedPlan: MassageDeskPlanId | null;
-  purchasedAt: string | null;
-}
-
-const BUYER_STORAGE_KEY = 'massagedeskosBuyerSession';
 const PENDING_PLAN_KEY = 'massagedeskosPendingPlan';
 const OWNER_PREVIEW_KEY = 'massagedeskosOwnerPreview';
+const OWNER_PREVIEW_PLAN_KEY = 'massagedeskosOwnerPreviewPlan';
 
 export const productInfo = {
   name: 'MassageDeskOS v8 Public Version 1',
@@ -29,13 +21,14 @@ export const productInfo = {
   installUrl: '/massagedeskos/',
   demoUrl: '/massagedeskos/?demo=1',
   supportEmail: import.meta.env.VITE_MASSAGEDESKOS_SUPPORT_EMAIL || 'support@massagedeskos.app',
+  starterDownloadUrl: import.meta.env.VITE_MASSAGEDESKOS_STARTER_DOWNLOAD_URL || '',
 };
 
 export const plans: MassageDeskPlan[] = [
   {
     id: 'starter',
     name: 'Starter License',
-    price: '$149',
+    price: '$149.95',
     tagline: 'Best for solo therapists',
     cta: 'Buy Starter',
     summary: 'One-time access to the installable PWA, quick-start materials, and backup workflow guidance.',
@@ -50,7 +43,7 @@ export const plans: MassageDeskPlan[] = [
   {
     id: 'professional',
     name: 'Professional Setup',
-    price: '$349',
+    price: '$349.95',
     tagline: 'Recommended for real launch',
     cta: 'Buy Professional',
     summary: 'Adds onboarding and buyer-ready setup support so the customer can go live faster with less friction.',
@@ -65,7 +58,7 @@ export const plans: MassageDeskPlan[] = [
   {
     id: 'studio',
     name: 'Studio Custom',
-    price: '$749',
+    price: '$749.95',
     tagline: 'For white-label or customization',
     cta: 'Request Studio',
     summary: 'For custom branding, implementation help, and higher-touch delivery.',
@@ -81,27 +74,6 @@ export const plans: MassageDeskPlan[] = [
 
 function canUseStorage() {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
-}
-
-export function getBuyerSession(): BuyerSession | null {
-  if (!canUseStorage()) return null;
-  const raw = window.localStorage.getItem(BUYER_STORAGE_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as BuyerSession;
-  } catch {
-    return null;
-  }
-}
-
-export function saveBuyerSession(session: BuyerSession) {
-  if (!canUseStorage()) return;
-  window.localStorage.setItem(BUYER_STORAGE_KEY, JSON.stringify(session));
-}
-
-export function clearBuyerSession() {
-  if (!canUseStorage()) return;
-  window.localStorage.removeItem(BUYER_STORAGE_KEY);
 }
 
 export function setPendingPlan(planId: MassageDeskPlanId) {
@@ -123,55 +95,6 @@ export function clearPendingPlan() {
   window.localStorage.removeItem(PENDING_PLAN_KEY);
 }
 
-export function completeStubPurchase(name: string, email: string, password: string, company?: string) {
-  const trimmedName = name.trim();
-  const trimmedEmail = email.trim().toLowerCase();
-  const pendingPlan = getPendingPlan();
-
-  if (!trimmedName || !trimmedEmail || !password.trim()) {
-    throw new Error('Name, email, and password are required.');
-  }
-
-  if (!pendingPlan) {
-    throw new Error('No pending purchase found. Choose a plan first.');
-  }
-
-  const session: BuyerSession = {
-    email: trimmedEmail,
-    name: trimmedName,
-    company: company?.trim() || '',
-    purchasedPlan: pendingPlan,
-    purchasedAt: new Date().toISOString(),
-  };
-
-  saveBuyerSession(session);
-  clearPendingPlan();
-  return session;
-}
-
-export function signInStub(email: string, password: string) {
-  const session = getBuyerSession();
-  if (!session) {
-    throw new Error('No buyer account found yet. Complete checkout or create your buyer access first.');
-  }
-
-  if (!email.trim() || !password.trim()) {
-    throw new Error('Email and password are required.');
-  }
-
-  if (session.email !== email.trim().toLowerCase()) {
-    throw new Error('This email does not match the current buyer access stub.');
-  }
-
-  return session;
-}
-
-export function hasBuyerAccess() {
-  if (isOwnerPreviewEnabled()) return true;
-  const session = getBuyerSession();
-  return Boolean(session?.purchasedPlan);
-}
-
 export function getPlanById(planId: MassageDeskPlanId | null) {
   return plans.find(plan => plan.id === planId) ?? null;
 }
@@ -179,23 +102,27 @@ export function getPlanById(planId: MassageDeskPlanId | null) {
 export function enableOwnerPreview(planId: MassageDeskPlanId = 'professional') {
   if (!canUseStorage()) return;
   window.localStorage.setItem(OWNER_PREVIEW_KEY, 'true');
-  saveBuyerSession({
-    email: 'owner-preview@massagedeskos.local',
-    name: 'MassageDeskOS Owner Preview',
-    company: 'Internal QA',
-    purchasedPlan: planId,
-    purchasedAt: new Date().toISOString(),
-  });
+  window.localStorage.setItem(OWNER_PREVIEW_PLAN_KEY, planId);
 }
 
 export function disableOwnerPreview() {
   if (!canUseStorage()) return;
   window.localStorage.removeItem(OWNER_PREVIEW_KEY);
+  window.localStorage.removeItem(OWNER_PREVIEW_PLAN_KEY);
 }
 
 export function isOwnerPreviewEnabled() {
   if (!canUseStorage()) return false;
   return window.localStorage.getItem(OWNER_PREVIEW_KEY) === 'true';
+}
+
+export function getOwnerPreviewPlan(): MassageDeskPlanId {
+  if (!canUseStorage()) return 'professional';
+  const value = window.localStorage.getItem(OWNER_PREVIEW_PLAN_KEY);
+  if (value === 'starter' || value === 'professional' || value === 'studio') {
+    return value;
+  }
+  return 'professional';
 }
 
 export function activateOwnerPreviewFromUrl() {
