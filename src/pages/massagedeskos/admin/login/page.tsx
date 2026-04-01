@@ -1,9 +1,10 @@
-import { FormEvent, useMemo, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { isOwnerEmail, ownerEmails } from '../../../../lib/massagedeskosAdmin';
 
 export default function MassageDeskAdminLoginPage() {
+  const location = useLocation();
   const { user, signInWithEmail, signInWithGoogle, resetPasswordForEmail, signOut, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -12,10 +13,18 @@ export default function MassageDeskAdminLoginPage() {
   const [working, setWorking] = useState(false);
 
   const signedInOwner = useMemo(() => isOwnerEmail(user?.email), [user?.email]);
+  const signedInNonOwner = Boolean(user?.email && !isOwnerEmail(user.email));
+  const denied = new URLSearchParams(location.search).get('denied') === '1';
 
   if (!loading && signedInOwner) {
     return <Navigate to="/products/massagedeskos/admin" replace />;
   }
+
+  useEffect(() => {
+    if (denied) {
+      setError('The current signed-in account does not have owner access. Sign out that account and use an authorized owner email.');
+    }
+  }, [denied]);
 
   const handleEmailSignIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -114,6 +123,12 @@ export default function MassageDeskAdminLoginPage() {
               Sign in with one of the owner emails above. Google sign-in is available if that account already exists in
               Supabase. Email/password works if you have credentials set up there already.
             </p>
+            {signedInNonOwner && (
+              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-7 text-red-700">
+                You are currently signed in as <span className="font-semibold">{user?.email}</span>, which is not on the owner
+                allowlist. Sign out below, then log in with `jblaylock650@gmail.com` or `juxtaposedtidesmedia@gmail.com`.
+              </div>
+            )}
             <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-900">
               If Google keeps reusing the wrong session, this button now clears the current app session first. If Google
               still auto-selects the wrong account, open this page in a private window for a clean account chooser.
@@ -138,6 +153,17 @@ export default function MassageDeskAdminLoginPage() {
             >
               {working ? 'Starting Google sign-in...' : 'Continue with Google'}
             </button>
+
+            {signedInNonOwner && (
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                disabled={working}
+                className="mt-4 w-full rounded-full border border-red-300 px-5 py-3 text-sm font-semibold text-red-700 transition hover:border-red-500 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                Sign Out Current Non-Owner Account
+              </button>
+            )}
 
             <div className="my-6 flex items-center gap-4 text-xs font-bold uppercase tracking-[0.18em] text-stone-400">
               <span className="h-px flex-1 bg-stone-200"></span>
