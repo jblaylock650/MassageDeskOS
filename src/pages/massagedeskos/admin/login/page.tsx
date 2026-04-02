@@ -5,7 +5,7 @@ import { isOwnerEmail, ownerEmails } from '../../../../lib/massagedeskosAdmin';
 
 export default function MassageDeskAdminLoginPage() {
   const location = useLocation();
-  const { user, signInWithEmail, signInWithGoogle, resetPasswordForEmail, signOut, loading } = useAuth();
+  const { user, signInWithEmail, signInWithGoogle, resetPasswordForEmail, signOut, clearStoredAuthState, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -16,15 +16,15 @@ export default function MassageDeskAdminLoginPage() {
   const signedInNonOwner = Boolean(user?.email && !isOwnerEmail(user.email));
   const denied = new URLSearchParams(location.search).get('denied') === '1';
 
-  if (!loading && signedInOwner) {
-    return <Navigate to="/products/massagedeskos/admin" replace />;
-  }
-
   useEffect(() => {
     if (denied) {
       setError('The current signed-in account does not have owner access. Sign out that account and use an authorized owner email.');
     }
   }, [denied]);
+
+  if (!loading && signedInOwner) {
+    return <Navigate to="/products/massagedeskos/admin" replace />;
+  }
 
   const handleEmailSignIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,6 +36,10 @@ export default function MassageDeskAdminLoginPage() {
       const normalizedEmail = email.trim().toLowerCase();
       if (!isOwnerEmail(normalizedEmail)) {
         throw new Error('This owner panel is restricted to the authorized Juxtaposed Tides owner accounts.');
+      }
+
+      if (user?.email && user.email.trim().toLowerCase() !== normalizedEmail) {
+        await clearStoredAuthState();
       }
 
       const { error: signInError } = await signInWithEmail(normalizedEmail, password);
@@ -157,13 +161,22 @@ export default function MassageDeskAdminLoginPage() {
             {signedInNonOwner && (
               <button
                 type="button"
-                onClick={() => void signOut()}
+                onClick={() => void clearStoredAuthState()}
                 disabled={working}
                 className="mt-4 w-full rounded-full border border-red-300 px-5 py-3 text-sm font-semibold text-red-700 transition hover:border-red-500 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 Sign Out Current Non-Owner Account
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => void clearStoredAuthState()}
+              disabled={working}
+              className="mt-4 w-full rounded-full border border-stone-300 px-5 py-3 text-sm font-semibold text-stone-700 transition hover:border-stone-500 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              Reset this browser&apos;s stuck login session
+            </button>
 
             <div className="my-6 flex items-center gap-4 text-xs font-bold uppercase tracking-[0.18em] text-stone-400">
               <span className="h-px flex-1 bg-stone-200"></span>

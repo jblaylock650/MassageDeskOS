@@ -13,6 +13,7 @@ interface AuthContextType {
   resetPasswordForEmail: (email: string, redirectPath?: string) => Promise<{ error: AuthError | null }>;
   updatePassword: (password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
+  clearStoredAuthState: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
 }
 
@@ -53,6 +54,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  const isMissingProfilesResource = (error: unknown) => {
+    if (!error || typeof error !== 'object') return false;
+
+    const maybeError = error as { code?: string; message?: string; details?: string; status?: number };
+    const combined = `${maybeError.code ?? ''} ${maybeError.message ?? ''} ${maybeError.details ?? ''}`.toLowerCase();
+
+    return maybeError.status === 404 || combined.includes('profiles') || combined.includes('relation') || combined.includes('schema cache');
+  };
+
   const loadProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -64,7 +74,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       setProfile(data);
     } catch (error) {
+      if (isMissingProfilesResource(error)) {
+        setProfile(null);
+        return;
+      }
+
       console.error('Error loading profile:', error);
+      setProfile(null);
     } finally {
       setLoading(false);
     }
@@ -104,13 +120,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (!error && data.user) {
-      // Create profile
-      await supabase.from('profiles').insert({
-        id: data.user.id,
-        email: data.user.email!,
-        name,
-        avatar_url: null,
-      });
+      try {
+        await supabase.from('profiles').insert({
+          id: data.user.id,
+          email: data.user.email!,
+          name,
+          avatar_url: null,
+        });
+      } catch (profileError) {
+        if (!isMissingProfilesResource(profileError)) {
+          console.error('Error creating profile:', profileError);
+        }
+      }
     }
 
     return { error };
@@ -142,6 +163,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
   };
 
+  const clearStoredAuthState = async () => {
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (error) {
+      console.error('Error clearing local auth session:', error);
+    }
+
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+      const keysToRemove: string[] = [];
+
+      for (let index = 0; index < window.localStorage.length; index += 1) {
+        const key = window.localStorage.key(index);
+        if (!key) continue;
+        if (key.startsWith('sb-') && key.includes('auth-token')) {
+          keysToRemove.push(key);
+        }
+      }
+
+      keysToRemove.forEach(key => window.localStorage.removeItem(key));
+    }
+
+    setUser(null);
+    setProfile(null);
+    setSession(null);
+  };
+
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) return;
 
@@ -167,6 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetPasswordForEmail,
     updatePassword,
     signOut,
+    clearStoredAuthState,
     updateProfile,
   };
 
